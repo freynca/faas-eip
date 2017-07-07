@@ -1,5 +1,9 @@
 package io.pivotal.faas.eip.hackday;
 
+import net.sf.uadetector.ReadableUserAgent;
+import net.sf.uadetector.UserAgentStringParser;
+import net.sf.uadetector.UserAgentType;
+import net.sf.uadetector.service.UADetectorServiceFactory;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.ClientProtocolException;
@@ -15,6 +19,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.function.Function;
 
 @SpringBootApplication
@@ -22,10 +28,42 @@ public class HackdayApplication {
 
   private static final DefaultHttpClient HTTP_CLIENT = new DefaultHttpClient();
 
+  private static final String MOBILE_TWEET_URL = "https://mobile.twitter.com/pivotalcf/status/875750653481635841";
+  private static final String DESKTOP_TWEET_URL = "https://twitter.com/pivotalcf/status/875750653481635841";
+
+  private static final UserAgentStringParser USER_AGENT_STRING_PARSER = UADetectorServiceFactory.getCachingAndUpdatingParser();
+
 
   @Bean
-  public Function<Flux<String>, Flux<String>> uppercase() {
-    return flux -> flux.map(value -> value.toUpperCase());
+  public Function<Flux<String>, Flux<String>> mobileurlprocessor() {
+    return new Function<Flux<String>, Flux<String>>() {
+      @Override
+      public Flux<String> apply(Flux<String> stringFlux) {
+        return stringFlux.map(new Function<String, String>() {
+
+          @Override
+          public String apply(String s) {
+            return MOBILE_TWEET_URL;
+          }
+        });
+      }
+    };
+  }
+
+  @Bean
+  public Function<Flux<String>, Flux<String>> desktopurlprocessor() {
+    return new Function<Flux<String>, Flux<String>>() {
+      @Override
+      public Flux<String> apply(Flux<String> stringFlux) {
+        return stringFlux.map(new Function<String, String>() {
+
+          @Override
+          public String apply(String s) {
+            return DESKTOP_TWEET_URL;
+          }
+        });
+      }
+    };
   }
 
   @Bean
@@ -45,7 +83,7 @@ public class HackdayApplication {
   }
 
   @Bean
-  public Function<Flux<String>, Flux<String>> digitorletter()  {
+  public Function<Flux<String>, Flux<String>> tweeturlrouter()  {
     return new Function<Flux<String>, Flux<String>>() {
       @Override
       public Flux<String> apply(Flux<String> stringFlux) {
@@ -53,19 +91,11 @@ public class HackdayApplication {
 
           @Override
           public String apply(String s) {
-            if(1!=s.length()){
-              throw new RuntimeException("Expecting a value of length 1 only, but got ["+s+"]");
-            }
+            ReadableUserAgent userAgent = USER_AGENT_STRING_PARSER.parse(s);
 
-            String destinationService;
-            if(Character.isLetter(s.charAt(0))){
-              destinationService = "uppercase";
-
-            } else if(Character.isDigit(s.charAt(0))){
-              destinationService = "uppercase";
-
-            }else{
-              throw new RuntimeException("Character ["+s+"] is neither a letter or a digit");
+            String destinationService = "desktopurlprocessor";
+            if(UserAgentType.MOBILE_BROWSER.equals(userAgent.getType())){
+              destinationService = "mobileurlprocessor";
             }
 
             String returnVal;
