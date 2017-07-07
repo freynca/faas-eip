@@ -27,59 +27,21 @@ import java.util.function.Function;
 public class HackdayApplication {
 
   private static final DefaultHttpClient HTTP_CLIENT = new DefaultHttpClient();
+  private static final String FAAS_SVC_URL = System.getenv("FAAS_SVC_URL");
 
   private static final String MOBILE_TWEET_URL = "https://mobile.twitter.com/pivotalcf/status/875750653481635841";
   private static final String DESKTOP_TWEET_URL = "https://twitter.com/pivotalcf/status/875750653481635841";
 
   private static final UserAgentStringParser USER_AGENT_STRING_PARSER = UADetectorServiceFactory.getCachingAndUpdatingParser();
 
-
   @Bean
   public Function<Flux<String>, Flux<String>> mobileurlprocessor() {
-    return new Function<Flux<String>, Flux<String>>() {
-      @Override
-      public Flux<String> apply(Flux<String> stringFlux) {
-        return stringFlux.map(new Function<String, String>() {
-
-          @Override
-          public String apply(String s) {
-            return MOBILE_TWEET_URL;
-          }
-        });
-      }
-    };
+    return flux -> flux.map(value -> MOBILE_TWEET_URL);
   }
 
   @Bean
   public Function<Flux<String>, Flux<String>> desktopurlprocessor() {
-    return new Function<Flux<String>, Flux<String>>() {
-      @Override
-      public Flux<String> apply(Flux<String> stringFlux) {
-        return stringFlux.map(new Function<String, String>() {
-
-          @Override
-          public String apply(String s) {
-            return DESKTOP_TWEET_URL;
-          }
-        });
-      }
-    };
-  }
-
-  @Bean
-  public Function<Flux<String>, Flux<String>> simpleruppercase() {
-    return new Function<Flux<String>, Flux<String>>() {
-      @Override
-      public Flux<String> apply(Flux<String> stringFlux) {
-        return stringFlux.map(new Function<String, String>() {
-
-          @Override
-          public String apply(String s) {
-            return s.toUpperCase();
-          }
-        });
-      }
-    };
+    return flux -> flux.map(value -> DESKTOP_TWEET_URL);
   }
 
   @Bean
@@ -99,7 +61,7 @@ public class HackdayApplication {
             }
 
             String returnVal;
-            HttpPost postToLetterService = new HttpPost("http://localhost:8080/faas/"+destinationService);
+            HttpPost postToLetterService = new HttpPost(FAAS_SVC_URL + destinationService);
             try {
               postToLetterService.setEntity(new StringEntity(s));
               HttpResponse response =  HTTP_CLIENT.execute(postToLetterService);
